@@ -1,13 +1,13 @@
 import json
+from datetime           import date
 
 from django.shortcuts   import render
-from django.http        import JsonResponse, HttpResponse
+from django.http        import HttpResponse, JsonResponse
 from django.views       import View
+from django.db.models   import Q
 
-from user.utils             import login_decorator
-from reservation.models     import Reservation, ReservationStatus
-from accommodation.models   import Accommodation
-from user.models            import User
+from reservation.models import Reservation
+from user.utils         import login_decorator
 
 class ReservationListView(View):
     @login_decorator
@@ -48,7 +48,6 @@ class ReservationListView(View):
         except KeyError:
             return JsonResponse({'message':'KEY_ERROR'}, status=400)
 
-
 STATUS_BOOKED = 2
 
 class PurchaseView(View):
@@ -76,5 +75,6 @@ class PurchaseView(View):
                 status_id           = status_id
             )
             return JsonResponse({'message': 'SUCESS'}, status=200)
+        
         except KeyError:
             return JsonResponse({'message': 'KEY_ERROR'}, status=400)
