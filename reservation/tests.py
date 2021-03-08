@@ -139,7 +139,7 @@ class ReservationListViewTest(TestCase):
         access_token    = jwt.encode({'user': user.id}, SECRET_KEY, ALGORITHM)
         headers         = {'HTTP_Authorization': access_token}
         
-        response = client.get('/reservation', content_type='application/json', **headers)
+        response = client.get('/reservation', content_type='text/html' ,**headers)
         self.assertEqual(response.status_code, 200)
        
         self.assertEqual(response.json(), {
@@ -175,9 +175,18 @@ class ReservationListViewTest(TestCase):
         access_token    = jwt.encode({'user': user.id}, SECRET_KEY, ALGORITHM)
         headers         = {'HTTP_Authorization': access_token}
 
-        response = client.get('/reservation', content_type='application/json', **headers)
+        response = client.get('/reservation', content_type='text/html', **headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'message':'NO_RESERVATION'})
+
+    def test_reservation_list_fail(self):
+        client          = Client()
+        user            = User.objects.get(id=3)
+        access_token    = jwt.encode({'user': user.id}, SECRET_KEY, ALGORITHM)
+        headers         = {'HTTP_Authorization': access_token}
+
+        reponse = client.get('/reservation/failcase', content_type='text/html', **headers)
+        self.assertEqual(response.status_code, 404)
 
 class ReservationListViewTest(TestCase):
     def setUp(self):
