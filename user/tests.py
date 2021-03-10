@@ -78,4 +78,3 @@ class KakaoSigninTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'message': 'INVALID_SNS_TOKEN'})
-

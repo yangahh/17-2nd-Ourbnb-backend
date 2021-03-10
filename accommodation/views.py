@@ -1,13 +1,19 @@
 import json
-from statistics import mean
+import math
+
+from json.decoder import JSONDecodeError
+from decimal      import Decimal
+from statistics   import mean
+from datetime     import datetime
 
 from django.http                import JsonResponse
 from django.views               import View
-from django.db.models           import Avg
+from django.db                  import connection
+from django.db.models           import Avg, Q
 from django.utils.dateformat    import DateFormat
 from django.db.models.functions import Coalesce
 
-from .models                    import Accommodation
+from .models                    import Accommodation, Category, Image
 
 class AccomodationDetailView(View):
     def get(self, request, accommodation_id):
@@ -61,3 +67,76 @@ class AccomodationDetailView(View):
         }
 
         return JsonResponse(data, status=200)
+
+
+class AccommodationListView(View):
+    def get(self, request):         
+        checkin    = request.GET.get('checkin')
+        checkout   = request.GET.get('checkout')
+        guests     = request.GET.get('guests')
+        categories = request.GET.getlist('roomtype') 
+        price_min  = request.GET.get('min')
+        price_max  = request.GET.get('max')
+        limit      = int(request.GET.get('limit', '15'))
+        offset     = int(request.GET.get('offset', '15'))
+
+        condition = Q()
+        if (checkin and checkout):
+            condition.add((
+                ( 
+                    Q(unavailabledate__end_date__lte= datetime.strptime(checkin, "%Y-%m-%d").date()) 
+                )|(
+                    Q(unavailabledate__start_date__gte= datetime.strptime(checkout, "%Y-%m-%d").date())                    
+                )
+            ), Q.OR)
+
+        if guests:
+            condition.add(Q(max_capacity__gt=guests), Q.AND)
+
+        if len(categories):
+            category_dict = {
+                'entire'  : '집 전체',
+                'private' : '개인실',
+                'shared'  : '다인실',
+                'hotel'   : '호텔 객실'
+            }
+            categories = [category_dict[category] for category in categories]
+
+            condition.add(Q(category__name__in=categories), Q.AND)
+
+        if price_min:
+            condition.add(Q(price__gt=price_min), Q.AND)
+        if price_max:
+            condition.add(Q(price__lt=price_max), Q.AND)
+        
+        accommodations = Accommodation.objects.prefetch_related('image_set', 'review_set').select_related('category').filter(condition).distinct()
+        
+        index = math.ceil(len(accommodations)/limit)
+        accommodations = accommodations[offset-limit:offset]
+
+        data = [
+            {
+            'id'       : accommodation.id,
+            'img'      : [image.image_url for image in accommodation.image_set.all()],
+            'location' : accommodation.address.split(' ')[1] + ' ' + accommodation.category.name,
+            'title'    : accommodation.title,
+            'MaxNum'   : accommodation.max_capacity,
+            'grade'    : str(round(mean(accommodation.review_set.all().aggregate(
+                Avg('clean_rate'),
+                Avg('communication_rate'),
+                Avg('checkin_rate'),
+                Avg('accuracy_rate'),
+                Avg('location_rate'),
+                Avg('value_rate')).values()), 2)) 
+                if accommodation.review_set.exists() else '0',
+            'gradeNum' : accommodation.review_set.count(),
+            'price'    : round(accommodation.price, 0),
+            'lat'      : accommodation.latitude,
+            'long'     : accommodation.longitude,
+            'bed'      : accommodation.number_of_bed,
+            'bedroom'  : accommodation.number_of_bedroom,
+            'bathroom' : accommodation.number_of_bathroom
+            }
+        for accommodation in accommodations]
+
+        return JsonResponse({'message': 'SUCCESS', 'data': data, 'index': index}, status=200)
