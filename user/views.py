@@ -40,6 +40,3 @@ class KakaoSigninView(View):
         
         except SocialPlatform.DoesNotExist:
             return JsonResponse({"message": "SOCIAL_PLATFORM_DOES_NOT_EXIST"}, status=400)
-
-
-
