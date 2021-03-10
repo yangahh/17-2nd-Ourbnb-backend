@@ -4,15 +4,12 @@ from django.test   import TestCase
 from django.test   import Client
 from unittest.mock import patch, MagicMock
 
-from .models       import User, SocialPlatform
-from .views        import KakaoSigninView
+from .models       import SocialPlatform
 
 class KakaoSigninTest(TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         SocialPlatform.objects.create(name='kakao')
-
-    def tearDown(self):
-        SocialPlatform.objects.create(name='kakao').delete()
 
     @patch('user.views.requests')
     def test_kakaosigninview_post_success(self, mock_requests):
