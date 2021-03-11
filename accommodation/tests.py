@@ -1,11 +1,14 @@
 import unittest
 import json
+import boto3
 import jwt
-from datetime import datetime
-from decimal  import Decimal
+from datetime             import datetime
+from decimal              import Decimal
+from unittest.mock        import patch, MagicMock
 
 from django.test          import TestCase, Client
 from django.test.utils    import override_settings
+from django.core.files    import File
 
 from user.models          import User, SocialPlatform
 from review.models        import Review
@@ -14,6 +17,49 @@ from my_settings          import SECRET_KEY, ALGORITHM
 
 maxDiff = None
 client  = Client()
+
+class FileUploadTest(TestCase):
+    @patch('accommodation.views.boto3.client')
+    def test_post_one_image_success(self, mock_s3client):
+        mock_file1      = MagicMock(spec=File)
+        mock_file1.name = 'test1.png'
+        mock_s3client.upload_fileobj = MagicMock()
+
+        response = client.post('/accommodation/file', {'fileNames': mock_file1})
+
+        self.assertEqual(response.status_code, 200)
+            
+    @patch('accommodation.views.boto3.client')
+    def test_post_multi_images_success(self, mock_s3client):
+        mock_file1      = MagicMock(spec=File)
+        mock_file2      = MagicMock(spec=File)
+        mock_file1.name = 'test1.png'
+        mock_file2.name = 'test2.png'
+        mock_s3client.upload_fileobj = MagicMock()
+
+        response = client.post('/accommodation/file', {'fileNames': [mock_file1, mock_file2]})
+
+        self.assertEqual(response.status_code, 200)
+
+    @patch('accommodation.views.boto3.client')
+    def test_post_non_file_fail(self, mock_s3client):
+        response = client.post('/accommodation/file')
+        self.assertEqual(response.json(),
+            {
+                "message": "IMAGE_DOES_NOT_EXIST"
+            }
+        )
+        self.assertEqual(response.status_code, 400)
+    
+    @patch('accommodation.views.boto3.client')
+    def test_post_key_fail(self, mock_s3client):
+        mock_file1      = MagicMock(spec=File)
+        mock_file1.name = 'test1.png'
+        mock_s3client.upload_fileobj = MagicMock()
+
+        response = client.post('/accommodation/file', {'fileName': mock_file1})
+
+        self.assertEqual(response.status_code, 400)
 
 class AccommodationRegisterTest(TestCase):
     @classmethod
