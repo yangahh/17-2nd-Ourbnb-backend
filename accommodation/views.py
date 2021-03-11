@@ -1,5 +1,7 @@
 import json
 import math
+import boto3
+import uuid 
 
 from statistics                 import mean
 from datetime                   import datetime
@@ -16,6 +18,11 @@ from django.core.exceptions     import ObjectDoesNotExist
 
 from user.utils                 import login_decorator
 from .models                    import Accommodation, Category, Image, UnavailableDate
+from my_settings                import (
+                                    AWS_S3_ACCESS_KEY_ID, 
+                                    AWS_S3_SECRET_ACCESS_KEY, 
+                                    AWS_S3_STORAGE_BUCKET_NAME,
+                                )  
 
 
 class AccommodationListView(View):
@@ -136,6 +143,36 @@ class AccommodationListView(View):
 
         except Category.DoesNotExist:
             return JsonResponse({'message': 'CATEGORY_DOES_NOT_EXIST'}, status=400)
+
+class FileUploadView(View):
+    def post(self, request):
+        AWS_S3_CREDS = {
+            "aws_access_key_id"    : AWS_S3_ACCESS_KEY_ID,
+            "aws_secret_access_key": AWS_S3_SECRET_ACCESS_KEY
+        }
+        s3_client = boto3.client('s3', **AWS_S3_CREDS)
+
+        files = request.FILES.getlist('fileNames')
+
+        if not files:
+            return JsonResponse({'message': 'IMAGE_DOES_NOT_EXIST'}, status=400)
+
+        file_urls = []
+        for file in files:
+            file_type = file.content_type.split('/')[-1]
+            file_name = str(uuid.uuid4()).replace('-','') + DateFormat(datetime.now()).format('Ymd')+ '.' + file_type
+
+            s3_client.upload_fileobj(
+                file,
+                AWS_S3_STORAGE_BUCKET_NAME,
+                file_name,
+                ExtraArgs={
+                    "ContentType": file.content_type
+                }
+            )
+            file_urls.append(f"https://{AWS_S3_STORAGE_BUCKET_NAME}.s3.ap-northeast-2.amazonaws.com/{file_name}")
+
+        return JsonResponse({'file_urls': file_urls}, status=200)
 
 class AccomodationDetailView(View):
     def get(self, request, accommodation_id):
