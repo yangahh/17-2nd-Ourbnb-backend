@@ -29,4 +29,3 @@ def login_decorator(func):
             return JsonResponse({"message": "INVALID_USER"}, status=401)
 
     return wrapper
-

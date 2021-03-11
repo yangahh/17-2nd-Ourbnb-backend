@@ -1,4 +1,6 @@
 import unittest
+import json
+import jwt
 from datetime import datetime
 from decimal  import Decimal
 
@@ -8,9 +10,153 @@ from django.test.utils    import override_settings
 from user.models          import User, SocialPlatform
 from review.models        import Review
 from accommodation.models import Category, Accommodation, Image, UnavailableDate
+from my_settings          import SECRET_KEY, ALGORITHM
 
 maxDiff = None
-client = Client()
+client  = Client()
+
+class AccommodationRegisterTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        SocialPlatform.objects.create(id=1, name='kakao')
+        
+        User.objects.create(
+            id                 = 1,
+            email              = 'test@gmail.com',
+            name               = 'test',
+            profile_image      = 'profile_image.jpg',
+            social_platform_id = 1
+        )
+
+        Category.objects.create(
+            id          = 1,
+            name        = '집 전체', 
+            description = '집 전체를 사용하게 됩니다.'
+        )
+
+    def test_accommodation_register_post_success(self):
+        user         = User.objects.get(id=1)
+        access_token = jwt.encode({'user': user.id}, SECRET_KEY, ALGORITHM)
+        headers      = {'HTTP_Authorization': access_token}
+        body = {
+            'roomType'    : '집 전체',
+            'title'       : 'nice house',
+            'address'     : '선릉',
+            'lat'         : 37.5,
+            'long'        : 127.05,
+            'description' : 'desc',
+            'maxPeople'   : 5,
+            'onedayPrice' : 120000.00,
+            'cleaningFee' : 1000.050000,
+            'beds'        : 1,
+            'bedrooms'    : 2,
+            'bathrooms'   : 1,
+            'imgUrls'     : ['http://image1.jpg', 'http://image2.jpg'],
+            'unavailableDates': [
+                {'start_date': '2021-03-04', 'end_date': '2021-03-09'}, 
+                {'start_date': '2021-03-10', 'end_date': '2021-03-17'}, 
+            ]
+        }
+        response = client.post('/accommodation', json.dumps(body), content_type='application/json', **headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(),
+            {
+                'message': 'SUCCESS'
+            }
+        )
+
+    def test_accommodation_register_post_key_fail(self):
+        user         = User.objects.get(id=1)
+        access_token = jwt.encode({'user': user.id}, SECRET_KEY, ALGORITHM)
+        headers      = {'HTTP_Authorization': access_token}
+        body = {
+            'roomType'    : '집 전체',
+            'title'       : 'nice house',
+            'address'     : '선릉',
+            'lat'         : 37.5,
+            'long'        : 127.05,
+            'description' : 'desc',
+            'maxPeople'   : 5,
+            'onedayPrice' : 120000.00,
+            'cleaningFee' : 1000.050000,
+            'beds'        : 1,
+            'bedrooms'    : 2,
+            'bathrooms'   : 1,
+            'imgUrls'     : ['http://image1.jpg', 'http://image2.jpg']
+        }
+        response = client.post('/accommodation', json.dumps(body), content_type='application/json', **headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(),
+            {
+                'message': 'KEY_ERROR'
+            }
+        )
+
+    def test_accommodation_register_fail_non_category(self):
+        user         = User.objects.get(id=1)
+        access_token = jwt.encode({'user': user.id}, SECRET_KEY, ALGORITHM)
+        headers      = {'HTTP_Authorization': access_token}
+        body = {
+            'roomType'    : '전체',
+            'title'       : 'nice house',
+            'address'     : '선릉',
+            'lat'         : 37.5,
+            'long'        : 127.05,
+            'description' : 'desc',
+            'maxPeople'   : 5,
+            'onedayPrice' : 120000.00,
+            'cleaningFee' : 1000.050000,
+            'beds'        : 1,
+            'bedrooms'    : 2,
+            'bathrooms'   : 1,
+            'imgUrls'     : ['http://image1.jpg', 'http://image2.jpg'],
+            'unavailableDates': [
+                {'start_date': '2021-03-04', 'end_date': '2021-03-09'}, 
+                {'start_date': '2021-03-10', 'end_date': '2021-03-17'}, 
+            ]
+        }
+        response = client.post('/accommodation', json.dumps(body), content_type='application/json', **headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(),
+            {
+                'message':'CATEGORY_DOES_NOT_EXIST'
+            }
+        )
+
+    def test_accommodation_register_invalid_token(self):
+        user         = User.objects.get(id=1)
+        access_token = jwt.encode({'user': user.id}, 'secret', ALGORITHM)
+        headers      = {'HTTP_Authorization': access_token}
+        body = {
+            'roomType'    : '집 전체',
+            'title'       : 'nice house',
+            'address'     : '선릉',
+            'lat'         : 37.5,
+            'long'        : 127.05,
+            'description' : 'desc',
+            'maxPeople'   : 5,
+            'onedayPrice' : 120000.00,
+            'cleaningFee' : 1000.050000,
+            'beds'        : 1,
+            'bedrooms'    : 2,
+            'bathrooms'   : 1,
+            'imgUrls'     : ['http://image1.jpg', 'http://image2.jpg'],
+            'unavailableDates': [
+                {'start_date': '2021-03-04', 'end_date': '2021-03-09'}, 
+                {'start_date': '2021-03-10', 'end_date': '2021-03-17'}, 
+            ]
+        }
+        response = client.post('/accommodation', json.dumps(body), content_type='application/json', **headers)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(),
+            {
+                'message':'INVALID_TOKEN'
+            }
+        )
 
 class AccommodationDetailTest(TestCase):
     @classmethod
@@ -81,9 +227,7 @@ class AccommodationDetailTest(TestCase):
 
     @override_settings(DEBUG=True)
     def test_accommodation_detail_get_success(self):
-        client   = Client()
         response = client.get('/accommodation/1')
-        print(response)
         self.assertEqual(response.json(),
             {
                "id":1,
@@ -150,7 +294,6 @@ class AccommodationDetailTest(TestCase):
         self.assertEqual(response.status_code, 200)  
 
     def test_accommodation_detail_get_not_found(self):
-        client   = Client()
         response = client.get('/accommodation/99999999')
         self.assertEqual(response.json(),
             {

@@ -1,10 +1,10 @@
 import json
 import math
 
-from json.decoder import JSONDecodeError
-from decimal      import Decimal
-from statistics   import mean
-from datetime     import datetime
+from statistics                 import mean
+from datetime                   import datetime
+from json.decoder               import JSONDecodeError
+from decimal                    import Decimal
 
 from django.http                import JsonResponse
 from django.views               import View
@@ -12,61 +12,10 @@ from django.db                  import connection
 from django.db.models           import Avg, Q
 from django.utils.dateformat    import DateFormat
 from django.db.models.functions import Coalesce
+from django.core.exceptions     import ObjectDoesNotExist
 
-from .models                    import Accommodation, Category, Image
-
-class AccomodationDetailView(View):
-    def get(self, request, accommodation_id):
-        if not Accommodation.objects.filter(id=accommodation_id).exists():
-            return JsonResponse({"message": "PAGE_NOT_FOUND"}, status=404)
-
-        accommodation = Accommodation.objects.select_related('user', 'category').prefetch_related('review_set').get(id=accommodation_id)
-        review_avg    = accommodation.review_set.aggregate(
-                            clean_avg         = Coalesce(Avg('clean_rate'), 0),
-                            accuracy_avg      = Coalesce(Avg('accuracy_rate'), 0),
-                            communication_avg = Coalesce(Avg('communication_rate'), 0),
-                            location_avg      = Coalesce(Avg('location_rate'), 0),
-                            checkin_avg       = Coalesce(Avg('checkin_rate'), 0),
-                            value_avg         = Coalesce(Avg('value_rate'), 0),
-                        )
-        
-        data = {
-            'id'         : accommodation.id,
-            'title'      : accommodation.title,
-            'address'    : accommodation.address,
-            'lat'        : accommodation.latitude,
-            'long'       : accommodation.longitude,
-            'firstImg'   : accommodation.image_set.first().image_url,
-            'img'        : [image.image_url for image in accommodation.image_set.all()[1:]],
-            'description': accommodation.description,
-            'onedayPrice': accommodation.price,
-            'cleaningFee': accommodation.cleaning_fee,
-            'hostName'   : accommodation.user.name,
-            'hostProfile': accommodation.user.profile_image,
-            'roomType'   : {
-                'name'       : accommodation.category.name,
-                'description': accommodation.category.description
-            },
-            'maxPeople'  : accommodation.max_capacity,
-            'beds'       : accommodation.number_of_bed, 
-            'bedrooms'   : accommodation.number_of_bedroom, 
-            'bathrooms'  : accommodation.number_of_bathroom,
-            'totalCount': accommodation.review_set.count(),
-            'totalAvg'  : round(mean(review_avg.values()), 2),
-            'grade'     : [{
-                'average'   : round(each_average, 1),
-                'gradeValue': round(each_average * 100 / 5)
-            } for each_average in review_avg.values()],
-            'comment'  : [{
-                'reviewid'   : review.id,
-                'userName'   : review.user.name,
-                'userProfile': review.user.profile_image,
-                'content'    : review.content,
-                'createdAt'  : DateFormat(review.created_at).format('Ym')
-            } for review in accommodation.review_set.all()]
-        }
-
-        return JsonResponse(data, status=200)
+from user.utils                 import login_decorator
+from .models                    import Accommodation, Category, Image, UnavailableDate
 
 
 class AccommodationListView(View):
@@ -140,3 +89,105 @@ class AccommodationListView(View):
         for accommodation in accommodations]
 
         return JsonResponse({'message': 'SUCCESS', 'data': data, 'index': index}, status=200)
+
+    @login_decorator
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+
+            new_accommodation = Accommodation.objects.create(
+                category           = Category.objects.get(name=data['roomType']),
+                user               = request.user,
+                title              = data['title'],
+                address            = data['address'],
+                latitude           = data['lat'],
+                longitude          = data['long'],
+                description        = data['description'],
+                max_capacity       = data['maxPeople'],
+                price              = data['onedayPrice'],
+                cleaning_fee       = data['cleaningFee'],
+                number_of_bed      = data['beds'],
+                number_of_bedroom  = data['bedrooms'],
+                number_of_bathroom = data['bathrooms']
+            )
+
+            image_url_list = data['imgUrls']
+            for image_url in image_url_list:
+                Image.objects.create(
+                    accommodation = new_accommodation,
+                    image_url     = image_url
+                )
+
+            unavailable_dates_list = data['unavailableDates']
+            for unavailable_date in unavailable_dates_list:
+                start_date = datetime.strptime(unavailable_date['start_date'], '%Y-%m-%d').date()
+                end_date   = datetime.strptime(unavailable_date['end_date'], '%Y-%m-%d').date()
+
+                UnavailableDate.objects.create(
+                    accommodation = new_accommodation,
+                    start_date    = start_date,
+                    end_date      = end_date
+                )
+
+            return JsonResponse({'message': 'SUCCESS'}, status=200)
+
+        except KeyError:
+            return JsonResponse({'message': 'KEY_ERROR'}, status=400)
+
+        except Category.DoesNotExist:
+            return JsonResponse({'message': 'CATEGORY_DOES_NOT_EXIST'}, status=400)
+
+class AccomodationDetailView(View):
+    def get(self, request, accommodation_id):
+        if not Accommodation.objects.filter(id=accommodation_id).exists():
+            return JsonResponse({"message": "PAGE_NOT_FOUND"}, status=404)
+
+        accommodation = Accommodation.objects.select_related('user', 'category').prefetch_related('review_set').get(id=accommodation_id)
+        review_avg    = accommodation.review_set.aggregate(
+                            clean_avg         = Coalesce(Avg('clean_rate'), 0),
+                            accuracy_avg      = Coalesce(Avg('accuracy_rate'), 0),
+                            communication_avg = Coalesce(Avg('communication_rate'), 0),
+                            location_avg      = Coalesce(Avg('location_rate'), 0),
+                            checkin_avg       = Coalesce(Avg('checkin_rate'), 0),
+                            value_avg         = Coalesce(Avg('value_rate'), 0),
+                        )
+        
+        data = {
+            'id'         : accommodation.id,
+            'title'      : accommodation.title,
+            'address'    : accommodation.address,
+            'lat'        : accommodation.latitude,
+            'long'       : accommodation.longitude,
+            'firstImg'   : accommodation.image_set.first().image_url,
+            'img'        : [image.image_url for image in accommodation.image_set.all()[1:]],
+            'description': accommodation.description,
+            'onedayPrice': accommodation.price,
+            'cleaningFee': accommodation.cleaning_fee,
+            'hostName'   : accommodation.user.name,
+            'hostProfile': accommodation.user.profile_image,
+            'roomType'   : {
+                'name'       : accommodation.category.name,
+                'description': accommodation.category.description
+            },
+            'maxPeople'  : accommodation.max_capacity,
+            'beds'       : accommodation.number_of_bed, 
+            'bedrooms'   : accommodation.number_of_bedroom, 
+            'bathrooms'  : accommodation.number_of_bathroom,
+            'totalCount' : accommodation.review_set.count(),
+            'totalAvg'   : round(mean(review_avg.values()), 2),
+            'grade'      : [{
+                'average'   : round(each_average, 1),
+                'gradeValue': round(each_average * 100 / 5)
+            } for each_average in review_avg.values()],
+            'comment'    : [{
+                'reviewid'   : review.id,
+                'userName'   : review.user.name,
+                'userProfile': review.user.profile_image,
+                'content'    : review.content,
+                'createdAt'  : DateFormat(review.created_at).format('Ym')
+            } for review in accommodation.review_set.all()]
+        }
+
+        return JsonResponse(data, status=200)
+
+
