@@ -1,5 +1,8 @@
 from pathlib        import Path
-from my_settings    import SECRET_KEY, DATABASES
+from my_settings    import (
+                        SECRET_KEY, DATABASES, 
+                        AWS_S3_ACCESS_KEY_ID, AWS_S3_SECRET_ACCESS_KEY, AWS_S3_STORAGE_BUCKET_NAME
+                    )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +33,8 @@ INSTALLED_APPS = [
     'user',
     'accommodation',
     'review',
-    'reservation'
+    'reservation',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -102,12 +106,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/3.1/howto/static-files/
-
-STATIC_URL = '/static/'
-
 APPEND_SLASH = False
 
 ##CORS
@@ -134,3 +132,23 @@ CORS_ALLOW_HEADERS = (
     'x-csrftoken',
     'x-requested-with',
 )
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/3.1/howto/static-files/
+
+# S3
+AWS_ACCESS_KEY_ID        = AWS_S3_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY    = AWS_S3_SECRET_ACCESS_KEY
+AWS_S3_REGION_NAME       = 'ap-northeast-2'
+AWS_STORAGE_BUCKET_NAME  = AWS_S3_STORAGE_BUCKET_NAME
+AWS_S3_CUSTOM_DOMAIN     = '%s.s3.%s.amazonaws.com' % (AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
+AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+AWS_DEFAULT_ACL          = 'public-read'
+
+AWS_STATIC_LOCATION      = 'static'
+STATICFILES_STORAGE      = 'ourbnb.storage.StaticStorage'
+STATIC_URL               = 'https://%s/%s/' % (AWS_S3_CUSTOM_DOMAIN, AWS_STATIC_LOCATION)
+
+AWS_MEDIA_LOCATION       = 'media'
+DEFAULT_FILE_STORAGE     = 'ourbnb.storage.MediaStorage'
+
