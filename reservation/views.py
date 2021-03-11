@@ -1,13 +1,13 @@
 import json
-from datetime           import date
 
 from django.shortcuts   import render
-from django.http        import HttpResponse, JsonResponse
+from django.http        import JsonResponse, HttpResponse
 from django.views       import View
-from django.db.models   import Q
 
-from reservation.models import Reservation
-from user.utils         import login_decorator
+from user.utils             import login_decorator
+from reservation.models     import Reservation, ReservationStatus
+from accommodation.models   import Accommodation
+from user.models            import User
 
 class ReservationListView(View):
     @login_decorator
@@ -47,3 +47,34 @@ class ReservationListView(View):
             return JsonResponse({'message':'SUCESS','results':results}, status=200)
         except KeyError:
             return JsonResponse({'message':'KEY_ERROR'}, status=400)
+
+
+STATUS_BOOKED = 2
+
+class PurchaseView(View):
+    @login_decorator
+    def post(self, request):
+        try:
+            data    = json.loads(request.body)
+            user    = request.user
+
+            accommodation_id    = data['accommodation_id']
+            user_id             = user.id
+            start_date          = data['start_date']
+            end_date            = data['end_date']
+            total_price         = data['total_price']
+            total_guest         = data['total_guest']
+            status_id           = STATUS_BOOKED
+
+            Reservation.objects.create(
+                accommodation_id    = accommodation_id,
+                user_id             = user_id,
+                start_date          = start_date,
+                end_date            = end_date,
+                total_price         = total_price,
+                total_guest         = total_guest,
+                status_id           = status_id
+            )
+            return JsonResponse({'message': 'SUCESS'}, status=200)
+        except KeyError:
+            return JsonResponse({'message': 'KEY_ERROR'}, status=400)

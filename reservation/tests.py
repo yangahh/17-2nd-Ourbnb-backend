@@ -1,6 +1,5 @@
-import jwt
 import json
-import unittest
+import jwt
 from datetime               import date
 
 from django.test            import Client, TestCase
@@ -179,4 +178,102 @@ class ReservationListViewTest(TestCase):
         response = client.get('/reservation', content_type='application/json', **headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'message':'NO_RESERVATION'})
-        
+
+class ReservationListViewTest(TestCase):
+    def setUp(self):
+        SocialPlatform.objects.create(
+            name = 'kakao'
+        )
+
+        ReservationStatus.objects.create(
+            code = 1,
+            name = 'pending'
+        )
+
+        ReservationStatus.objects.create(
+            code = 2,
+            name = 'booked'
+        )
+
+        ReservationStatus.objects.create(
+            code = 3,
+            name = 'canceled'
+        )
+
+        User.objects.create(
+            id                 = 1,
+            email              = 'test@gmail.com',
+            name               = 'test',
+            profile_image      = 'profile_image.jpg',
+            social_platform    = SocialPlatform.objects.get(name='kakao')
+        )
+
+        Category.objects.create(
+            name        = '집 전체', 
+            description = '집 전체를 사용하게 됩니다.'
+        )
+
+        Accommodation.objects.create(
+            id                  = 1,
+            category            = Category.objects.get(name='집 전체'), 
+            user                = User.objects.get(email='test@gmail.com'),
+            title               = 'test house', 
+            address             = '서울특별시 강남구 테헤란로',
+            latitude            = 37.5,
+            longitude           = 127.05,
+            description         = 'description',
+            max_capacity        = 5,
+            price               = 10000,
+            cleaning_fee        = 1000,
+            number_of_bed       = 1,
+            number_of_bedroom   = 1,
+            number_of_bathroom  = 1    
+        )
+
+        Image.objects.create(
+            accommodation = Accommodation.objects.get(title='test house'),
+            image_url     = 'house_image.jpg'
+        )
+
+    def tearDown(self):
+        User.objects.all().delete()
+        Category.objects.all().delete()
+        Accommodation.objects.all().delete()
+        Image.objects.all().delete()
+
+    def test_purchase_sucess(self):
+        client          = Client()
+        user            = User.objects.get(id=1)
+        access_token    = jwt.encode({'user':user.id}, SECRET_KEY, ALGORITHM)
+        headers         = {'HTTP_AUTHORIZATION':access_token}
+
+        response = client.post(
+            '/reservation/purchase',
+            data={
+                'accommodation_id'  : 1,
+                'start_date'        : '2021-04-25',
+                'end_date'          : '2021-04-26',
+                'total_price'       : 10000,
+                'total_guest'       : 1,
+            },
+            content_type='application/json',
+            **headers
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_purchase_fail_keyerror(self):
+        client          = Client()
+        user            = User.objects.get(id=1)
+        access_token    = jwt.encode({'user':user.id}, SECRET_KEY, ALGORITHM)
+        headers         = {'HTTP_AUTHORIZATION':access_token}
+        response = client.post(
+            '/reservation/purchase',
+            data={
+                'keyError'          : 'keyError'
+            },
+            content_type='application/json',
+            **headers
+        )
+
+        self.assertEqual(response.status_code, 400)
