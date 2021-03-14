@@ -1,13 +1,13 @@
 # 🏠 Team OurBnB 🏠
 
 
-## Team Members👩‍👧‍👧👩‍👧‍👦 
+## Team Members 👥
 
 - FE : 강민지, 김연주, 허혜성
 - BE : 심규보, 양한아, 최호진
 
 
-## 기술스택
+## 기술스택 🔧
 
 - Python
 - Django
@@ -21,7 +21,7 @@
 - Kakao API
 
 
-## 기능구현
+## 기능구현 ⌨️
 
 #### 모델링 및 데이터 구성
 - AQueryTool을 사용하여 DB모델링
