@@ -25,6 +25,8 @@
 
 #### 모델링 및 데이터 구성
 - AQueryTool을 사용하여 DB모델링
+![image](https://user-images.githubusercontent.com/49216894/115713189-b15a7880-a3b0-11eb-84f3-ab2dcdd8514b.png)
+
 - 초기데이터 csv파일을 python 파일을 이용하여 업로드
 
 #### 회원가입 & 로그인
@@ -43,7 +45,7 @@
 - 시간별 예약 내역 확인
 
 #### 호스트 숙소 등록
-- S3를 이용하여 다중 이미지 업로드 구현
+- S3를 이용하여 다중 이미지 업로드 기능 구현
 
 
 ## Reference
