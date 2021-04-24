@@ -6,7 +6,6 @@ import uuid
 from statistics                 import mean
 from datetime                   import datetime
 from json.decoder               import JSONDecodeError
-from decimal                    import Decimal
 
 from django.http                import JsonResponse
 from django.views               import View
