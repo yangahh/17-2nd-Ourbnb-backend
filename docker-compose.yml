@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  mysql_db:
+    image: mysql:5.7
+    command:
+        - --character-set-server=utf8mb4
+        - --collation-server=utf8mb4_general_ci
+    ports:
+      - "3306:3306"
+    environment:
+       MYSQL_DATABASE: dcamp
+       MYSQL_USER: root
+       MYSQL_PASSWORD: password
+    volumes:
+        - ./db_data:/var/lib/mysql/
+  api:
+      #build: .
+    image: yangahh/ourbnb:0.0.2
+    command: python manage.py runserver 0.0.0.0:8000
+    #volumes:
+    # - .:/my_app_dir
+    ports:
+      - "8000:8000"
+    environment:
+        APP_DB_ENGINE: django.db.backends.mysql
+        DB_NAME: dcamp
+        DB_USER: root
+        DB_PASSWORD: password
+        DB_HOST: mysql_db
+        DB_PORT: "3306"
+        SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      - mysql_db
+

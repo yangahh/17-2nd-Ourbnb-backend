@@ -1,3 +1,4 @@
+import os
 from pathlib        import Path
 from my_settings    import (
                         SECRET_KEY, DATABASES, 
@@ -72,8 +73,17 @@ WSGI_APPLICATION = 'ourbnb.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASES = DATABASES
-
+#DATABASES = DATABASES
+DATABASES = {
+    'default': {
+        'ENGINE': os.environ.get('APP_DB_ENGINE'),
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_HOST'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT')
+    }
+}
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators
 
